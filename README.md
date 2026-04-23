@@ -18,3 +18,5 @@ El diagrama Entidad-Relación asociado a los requisitos establecidos es el sigui
 
 ![ALT diagrama_ER](ER_Ejercicio_1_BBDD.drawio.svg)
 
+Figura 1. Modelo Entidad-Relación práctica SQL propuesta.
+
