@@ -42,7 +42,7 @@ Figura 1. Modelo Entidad-Relación práctica SQL propuesta.
 
 Producto del diagrama Entidad-Relación descrito en el apartado anterior, el modelo Relacional es el siguiente.
 
-![diagrama_MR](MR_Ejercicio_1_BBDD.drawio.svg)
+![diagrama_MR](MR_Ejercicio_1_BBDD-2.drawio-1.svg)
 
 Figura 2. Modelo Relacional práctica SQL propuesta.
 
