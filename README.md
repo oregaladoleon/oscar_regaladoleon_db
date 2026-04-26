@@ -4,6 +4,24 @@
 > Fecha: Abril 2026.  
 > Módulo: BAE.
 ---
+## Índice del informe.
+1. Requisitos de la BBDD.
+2. Diagrama de Entidad-Relación.
+3. Diagrama Modelo Relacional.
+4. Script SQL de la BBDD.
+5. Resultados en psql de las entradas realizadas.
+6. Introducción de datos en la BBDD.
+7. Consultas realizadas a la BBDD.  
+    7.1. Consulta 1. Segundo surfista por edad.   
+    7.2. Consulta 2. Tiempo de experiencia del surfista.     
+    7.3. Consulta 3. Tablas de los surfistas.  
+    7.4. Consulta 4. Tablas suministradas por cada tienda.   
+    7.5. Consulta 5. Surfista con la tabla de mayor length.   
+8. Anexo: Comprobación de actualización y borrado.  
+    8.1 Prueba 1. Eliminar registro surfista  
+    8.2 Prueba 2. Eliminar registro tienda.  
+    8.3 Prueba 3. Actualización de registro.
+---
 ### 1. Requisitos de la BBDD.
 En este informe se expone el proceso llevado a cabo para ejecutar una base de datos, en adelante BBDD, que trata sobre la colección de tablas de surf (Quiver) que posee un determinado surfista, las tablas son suministradas por tiendas locales y nacionales.
 
@@ -244,3 +262,256 @@ surf_db-# ;
 ~~~
 ### 7. Consultas realizadas a la BBDD.
 
+#### 7.1 Consulta 1. Segundo surfista por edad.
+Se quiere conocer al segundo surfista por edad, expresando el nombre completo con apellidos en una columna.
+
+~~~sql
+SELECT id, surname || ', ' || name AS "Nombre completo", born, start_experience
+FROM surfista
+ORDER BY  --Ordena la consulta según la columna definida born.
+born
+OFFSET --No muestra la primera columna.
+1 ROW
+FETCH  -- Muestra la 1 columna siguiente.
+NEXT 1 ROW ONLY;
+~~~
+Como resultado hemos obtenido:
+~~~bash
+surf_db=# SELECT id, surname || ', ' || name AS "Nombre completo", born, start_experience
+FROM 
+surfista
+ORDER BY
+born
+OFFSET
+1 ROW
+FETCH
+NEXT 1 ROW ONLY;
+ id | Nombre completo |    born    | start_experience 
+----+-----------------+------------+------------------
+  2 | Machado, Robert | 1973-10-16 | 1994-01-01
+(1 row)
+~~~
+#### 7.2 Consulta 2. Tiempo de experiencia del surfista.
+Calculamos el tiempo de experiencia de cada surfista, para ello emplearemos la función AGE(columna) que nos calculará el tiempo transcurrido desde la fecha marcada en la columna hasta el día de hoy:
+~~~sql
+SELECT 
+    surname || ', ' || name AS "Surfista", -- Aplicamos alias y concatenación.
+    born AS "Fecha de nacimiento", --Aplicamos Alias a la columna born
+    AGE(start_experience) AS "Tiempo surfeando"
+FROM surfista
+ORDER BY
+start_experience ASC; --Ordenamos de manera ascendente.
+~~~
+El resultado obtenido ha sido:
+~~~bash
+surf_db=# SELECT
+surname || ', ' || name AS "Surfista",
+born AS "Fecha de nacimiento",
+AGE(start_experience) AS "Tiempo surfeando"
+FROM surfista
+ORDER BY
+start_experience ASC;
+    Surfista     | Fecha de nacimiento |    Tiempo surfeando     
+-----------------+---------------------+-------------------------
+ Slater, Kelly   | 1972-02-11          | 34 years 3 mons 24 days
+ Machado, Robert | 1973-10-16          | 32 years 3 mons 24 days
+ Medina, Gabriel | 1993-12-22          | 12 years 3 mons 24 days
+(3 rows)
+~~~
+
+#### 7.3 Consulta 3. Tablas de los surfistas.
+El objetivo de esta consulta es mostrar un listado donde aparezca el nombre del surfista, la marca y el modelo de las tablas que posee, ordenado por el nombre del surfista.
+
+~~~sql
+SELECT
+    s.name AS "Surfista",
+    q.brand AS "Marca",
+    q.model AS "Modelo",
+    p.level AS "Nivel de uso"
+FROM
+surfista s
+INNER JOIN posee p ON s.id = p.id_surfista
+INNER JOIN quiver q ON q.id = p.id_quiver
+ORDER BY s.name ASC;
+~~~
+El resultado obtenido ha sido:
+~~~bash
+urf_db=# SELECT
+    s.name AS "Surfista",
+    q.brand AS "Marca",
+    q.model AS "Modelo",
+    p.level AS "Nivel de uso"
+FROM
+surfista s
+INNER JOIN posee p ON s.id = p.id_surfista
+INNER JOIN quiver q ON q.id = p.id_quiver
+ORDER BY s.name ASC;
+ Surfista | Marca | Modelo  | Nivel de uso 
+----------+-------+---------+--------------
+ Kelly    | Pukas | Dark    | pro
+ Kelly    | Lost  | RNF     | pro
+ Robert   | Torq  | Mod Fun | intermediate
+(3 rows)
+~~~
+
+#### 7.4 Consulta 4. Tablas suministradas por cada tienda.
+En esta consulta, pretendemos saber cuántas tablas ha suministrado cada tienda a nuestro sistema.
+
+~~~sql
+SELECT
+    t.name AS "Tienda",
+    COUNT(sum.id_quiver) AS "Número de tablas"
+FROM tienda t
+LEFT JOIN suministro sum ON t.id = sum.id_tienda
+GROUP BY
+t.name;
+~~~
+El resultado obtenido ha sido:
+~~~bash
+surf_db=# SELECT
+    t.name AS "Tienda",
+    COUNT(sum.id_quiver) AS "Número de tablas"
+FROM tienda t
+LEFT JOIN suministro sum ON t.id = sum.id_tienda
+GROUP BY
+t.name;
+      Tienda       | Número de tablas 
+-------------------+------------------
+ Pukas Surf Shop   |                2
+ Mundaka Surf Shop |                0
+ Watsay Surf       |                1
+(3 rows)
+~~~
+
+#### 7.5 Consulta 5. Surfista con la tabla de mayor length.
+Por último, en esta consulta pretendemos encontrar el nombre del surfista que posee la tabla más larga de toda la base de datos.
+
+~~~sql
+SELECT
+    s.name || ', ' || s.surname AS "Surfista",
+    q.brand AS "Marca",
+    q.model AS "Model",
+    q.length AS "Longitud"
+FROM surfista s
+INNER JOIN posee p ON s.id = p.id_surfista
+INNER JOIN quiver q ON q.id = p.id_quiver
+WHERE q.length = (SELECT MAX(q2.length) FROM quiver q2); --Dentro de la subconsulta creamos otro alias, de no ser así genera error.
+~~~
+Se ha obtenido:
+~~~bash
+surf_db=# SELECT
+    s.name || ', ' || s.surname AS "Surfista",
+    q.brand AS "Marca",
+    q.model AS "Model",
+    q.length AS "Longitud"
+FROM surfista s
+INNER JOIN posee p ON s.id = p.id_surfista
+INNER JOIN quiver q ON q.id = p.id_quiver
+WHERE q.length = (SELECT MAX(q2.length) FROM quiver q2);
+    Surfista     | Marca |  Model  | Longitud 
+-----------------+-------+---------+----------
+ Robert, Machado | Torq  | Mod Fun |     7.02
+~~~
+### 8. Anexo: Comprobación de actualización y borrado.
+Para la comprobación del correcto funcionamiento de las restricciones de borrado y actualización especificadas en la creación de cada tabla de relación, se realizan las siguientes actuaciones.
+#### 8.1 Prueba 1. Eliminar registro surfista
+1. Seleccionamos un surfista y comprobamos sus registros.
+~~~sql
+SELECT * FROM surfista
+WHERE id = 1;
+~~~
+~~~bash
+surf_db=# SELECT * FROM surfista
+WHERE id = 1;
+ id | name  | surname |    born    | start_experience |    dni    
+----+-------+---------+------------+------------------+-----------
+  1 | Kelly | Slater  | 1972-02-11 | 1992-01-01       | 123456789
+(1 row)
+~~~
+~~~sql
+SELECT * FROM posee
+WHERE id_surfista = 1;
+~~~
+~~~bash
+surf_db=# SELECT * FROM posee
+WHERE id_surfista = 1;
+ id_surfista | id_quiver | level |   status    
+-------------+-----------+-------+-------------
+           1 |         1 | pro   | new
+           1 |         2 | pro   | second_hand
+(2 rows)
+~~~
+2. Realizamos el borrado.
+~~~sql
+DELETE FROM surfista
+WHERE id = 1;
+~~~
+3. Comprobamos que la acción se ha ejecutado.
+~~~sql
+SELECT * FROM posee
+WHERE id_surfista = 1;
+~~~
+~~~bash
+surf_db=# DELETE FROM surfista
+surf_db-# WHERE id = 1;
+DELETE 1
+surf_db=# SELECT * FROM posee
+WHERE id_surfista = 1;
+ id_surfista | id_quiver | level | status 
+-------------+-----------+-------+--------
+(0 rows)
+~~~
+#### 8.2 Prueba 2. Eliminar registro tienda.
+En este caso, en la tabla intermedia de relación habíamos definido ON DELETE RESTRICT, por lo tanto, no nos debe permitir el borrado del registro.
+1. Seleccionamos una tienda a borrar.
+~~~sql
+SELECT * FROM tienda
+WHERE id = 1;
+~~~
+~~~bash
+surf_db=# SELECT * FROM tienda
+surf_db-# WHERE id= 1;
+ id |      name       |           address            
+----+-----------------+------------------------------
+  1 | Pukas Surf Shop | Calle Mayor 5, San Sebastián
+(1 row)
+~~~
+2. Realizamos la acción de borrar.
+~~~sql
+DELETE FROM tienda
+WHERE id = 1;
+~~~
+~~~bash
+surf_db=# DELETE FROM tienda
+surf_db-# WHERE id =1;
+ERROR:  update or delete on table "tienda" violates foreign key constraint "fk_id_tienda" on table "suministro"
+DETAIL:  Key (id)=(1) is still referenced from table "suministro".
+~~~
+#### 8.3 Prueba 3. Actualización de registro.
+Para esta prueba de actualización de registro, vamos a cambiar el **status** de la tabla **posee**. 
+~~~sql
+SELECT * FROM posee;
+~~~
+~~~bash
+surf_db=# SELECT * FROM posee;
+ id_surfista | id_quiver |    level     |   status    
+-------------+-----------+--------------+-------------
+           2 |         3 | intermediate | second_hand
+(1 row)
+~~~
+~~~sql
+UPDATE posee
+SET status = 'new'
+WHERE id_surfista = 2 AND id_quiver = 3;
+~~~
+~~~bash
+surf_db=# UPDATE posee
+surf_db-# SET status = 'new'
+surf_db-# WHERE id_surfista = 2 AND id_quiver = 3;
+UPDATE 1
+surf_db=# SELECT * FROM posee;
+ id_surfista | id_quiver |    level     | status 
+-------------+-----------+--------------+--------
+           2 |         3 | intermediate | new
+(1 row)
+~~~
